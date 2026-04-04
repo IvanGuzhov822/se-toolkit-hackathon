@@ -3,13 +3,14 @@ import { useStore } from '../store/taskStore'
 
 export const useWeek = () => {
   const week = useStore((s) => s.week)
+  const weekOffset = useStore((s) => s.weekOffset)
   const loading = useStore((s) => s.loading)
   const error = useStore((s) => s.error)
   const fetchWeek = useStore((s) => s.fetchWeek)
 
   useEffect(() => {
-    fetchWeek()
-  }, [fetchWeek])
+    fetchWeek(weekOffset)
+  }, [fetchWeek, weekOffset])
 
   return { week, loading, error, refetch: fetchWeek }
 }

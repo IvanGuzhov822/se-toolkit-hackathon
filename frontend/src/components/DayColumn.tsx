@@ -78,7 +78,19 @@ const DayColumn: React.FC<DayColumnProps> = ({ date, dayName, tasks, onEdit, onD
               onClick={() => onEdit(task)}
               title={`${task.title} (${task.duration_min} min)`}
             >
-              <div className="font-semibold text-gray-800 truncate leading-tight">
+              {/* Delete button - always visible */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onDelete(task.id)
+                }}
+                className="absolute top-0.5 right-0.5 w-4 h-4 flex items-center justify-center rounded bg-white/80 hover:bg-red-500 hover:text-white text-gray-400 transition-colors text-[10px] font-bold z-10"
+                title="Delete task"
+              >
+                ✕
+              </button>
+
+              <div className="font-semibold text-gray-800 truncate leading-tight pr-4">
                 {task.title}
               </div>
               {heightRem >= 3 && (
@@ -86,15 +98,6 @@ const DayColumn: React.FC<DayColumnProps> = ({ date, dayName, tasks, onEdit, onD
                   {task.start_time} · {task.duration_min}m
                 </div>
               )}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onDelete(task.id)
-                }}
-                className="absolute top-0.5 right-0.5 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity text-[10px]"
-              >
-                ✕
-              </button>
             </div>
           )
         })}

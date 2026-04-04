@@ -13,9 +13,10 @@ interface AppState {
   showTaskForm: boolean
   editingTask: Task | null
   aiMessage: string | null
+  weekOffset: number  // 0 = current week, -1 = previous, +1 = next
 
   // Actions
-  fetchWeek: () => Promise<void>
+  fetchWeek: (offset?: number) => Promise<void>
   fetchQuote: () => Promise<void>
   addTask: (form: TaskFormData) => Promise<void>
   updateTask: (id: string, form: Partial<TaskFormData>) => Promise<void>
@@ -23,6 +24,7 @@ interface AppState {
   setShowTaskForm: (show: boolean) => void
   setEditingTask: (task: Task | null) => void
   setAIMessage: (msg: string | null) => void
+  setWeekOffset: (offset: number) => void
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -34,11 +36,21 @@ export const useStore = create<AppState>((set, get) => ({
   showTaskForm: false,
   editingTask: null,
   aiMessage: null,
+  weekOffset: 0,
 
-  fetchWeek: async () => {
-    set({ loading: true, error: null })
+  fetchWeek: async (offset?: number) => {
+    const newOffset = offset !== undefined ? offset : get().weekOffset
+    set({ loading: true, error: null, weekOffset: newOffset })
     try {
-      const week = await weeksApi.getCurrentWeek()
+      // Calculate the target Monday
+      const today = new Date()
+      const currentMonday = new Date(today)
+      const dayOfWeek = today.getDay() // 0=Sun, 1=Mon, ...
+      const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+      currentMonday.setDate(currentMonday.getDate() + diff + newOffset * 7)
+
+      const dateStr = currentMonday.toISOString().split('T')[0]
+      const week = await weeksApi.getWeek(dateStr)
       const allTasks = week.days.flatMap((d) => d.tasks)
       set({ week, tasks: allTasks, loading: false })
     } catch (e: unknown) {
@@ -76,4 +88,8 @@ export const useStore = create<AppState>((set, get) => ({
   setShowTaskForm: (show: boolean) => set({ showTaskForm: show }),
   setEditingTask: (task: Task | null) => set({ editingTask: task, showTaskForm: task !== null }),
   setAIMessage: (msg: string | null) => set({ aiMessage: msg }),
+  setWeekOffset: (offset: number) => {
+    set({ weekOffset: offset })
+    get().fetchWeek(offset)
+  },
 }))
