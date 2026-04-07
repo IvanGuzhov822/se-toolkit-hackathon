@@ -5,12 +5,13 @@ export interface Task {
   description: string | null
   is_important: boolean
   deadline: string | null
+  deadline_time: string | null
   scheduled_date: string
   start_time: string
   duration_min: number
   quadrant: 'Q1' | 'Q2' | 'Q3' | 'Q4'
-  created_at: string  // ISO 8601 from backend
-  updated_at: string  // ISO 8601 from backend
+  created_at: string
+  updated_at: string
 }
 
 export interface WeekDay {
@@ -41,6 +42,10 @@ export type TaskFormData = {
   is_important: boolean
   has_deadline: boolean
   deadline: string
+  deadline_time: string
   scheduled_date: string
+  start_time: string
   duration_min: number
+  manual: boolean
+  manual_start: string
 }

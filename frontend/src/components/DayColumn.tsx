@@ -8,37 +8,64 @@ interface DayColumnProps {
   tasks: Task[]
   onEdit: (task: Task) => void
   onDelete: (id: string) => void
+  sleepStart: string
+  sleepEnd: string
 }
 
-const ROW_HEIGHT_REM = 1.5 // each 15-min slot = 1.5rem
+const ROW_HEIGHT_REM = 1.5
 
-const DayColumn: React.FC<DayColumnProps> = ({ date, dayName, tasks, onEdit, onDelete }) => {
+const DayColumn: React.FC<DayColumnProps> = ({ date, dayName, tasks, onEdit, onDelete, sleepStart, sleepEnd }) => {
   const isToday = (() => {
     const today = new Date()
     const d = new Date(date + 'T00:00:00')
-    return (
-      d.getDate() === today.getDate() &&
-      d.getMonth() === today.getMonth() &&
-      d.getFullYear() === today.getFullYear()
-    )
+    return d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear()
   })()
 
-  // Highlight the current time if today
   const currentHour = new Date().getHours()
   const currentMin = new Date().getMinutes()
   const currentRow = minutesToRow(currentHour * 60 + currentMin)
 
+  // Calculate sleep zone
+  const sleepStartMin = timeToMinutes(sleepStart)
+  const sleepEndMin = timeToMinutes(sleepEnd)
+  const sleepStartRow = minutesToRow(sleepStartMin)
+  const sleepEndRow = minutesToRow(sleepEndMin)
+
+  // Build sleep zone ranges (could be split if overnight)
+  const sleepZones: { top: number; height: number }[] = []
+  if (sleepStartMin > sleepEndMin) {
+    // Overnight: 23:00 → 00:00 + 00:00 → 07:00
+    if (sleepStartRow < TOTAL_SLOTS) {
+      sleepZones.push({
+        top: sleepStartRow * ROW_HEIGHT_REM,
+        height: (TOTAL_SLOTS - sleepStartRow) * ROW_HEIGHT_REM,
+      })
+    }
+    if (sleepEndRow > 0) {
+      sleepZones.push({
+        top: 0,
+        height: sleepEndRow * ROW_HEIGHT_REM,
+      })
+    }
+  } else {
+    // Same day
+    sleepZones.push({
+      top: sleepStartRow * ROW_HEIGHT_REM,
+      height: (sleepEndRow - sleepStartRow) * ROW_HEIGHT_REM,
+    })
+  }
+
   return (
-    <div className={`flex-1 min-w-0 border-r border-gray-200 relative ${isToday ? 'bg-blue-50/30' : 'bg-white'}`}>
-      {/* Day header */}
-      <div className={`sticky top-0 z-10 px-2 py-1.5 text-center border-b border-gray-200 font-medium text-sm ${isToday ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-700'}`}>
+    <div className="flex-1 min-w-0 border-r border-gray-100 relative bg-white">
+      {/* Day header — sticky */}
+      <div className={`sticky top-0 z-10 px-2 py-1.5 text-center border-b border-gray-200 font-semibold text-sm ${isToday ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}>
         <div>{dayName}</div>
-        <div className="text-xs text-gray-400">{new Date(date + 'T00:00:00').getDate()}</div>
+        <div className={`text-xs ${isToday ? 'text-blue-200' : 'text-gray-400'}`}>{new Date(date + 'T00:00:00').getDate()}</div>
       </div>
 
       {/* Time grid */}
       <div className="relative" style={{ height: `${TOTAL_SLOTS * ROW_HEIGHT_REM}rem` }}>
-        {/* Horizontal grid lines (every 15 min) */}
+        {/* Horizontal grid lines */}
         {Array.from({ length: TOTAL_SLOTS }).map((_, i) => (
           <div
             key={i}
@@ -46,12 +73,25 @@ const DayColumn: React.FC<DayColumnProps> = ({ date, dayName, tasks, onEdit, onD
             style={{
               top: `${i * ROW_HEIGHT_REM}rem`,
               height: `${ROW_HEIGHT_REM}rem`,
-              borderColor: i % 4 === 0 ? '#e5e7eb' : '#f9fafb', // darker on the hour
+              borderColor: i % 4 === 0 ? '#e5e7eb' : '#f9fafb',
             }}
           />
         ))}
 
-        {/* Current time indicator (red line) */}
+        {/* Sleep zone overlay */}
+        {sleepZones.map((zone, i) => (
+          <div
+            key={i}
+            className="absolute left-0 right-0 bg-indigo-100/60 border-y border-indigo-200/40 flex items-center justify-center"
+            style={{ top: `${zone.top}rem`, height: `${zone.height}rem` }}
+          >
+            {zone.height > 3 && (
+              <span className="text-[9px] text-indigo-300 font-medium select-none">😴 Sleep</span>
+            )}
+          </div>
+        ))}
+
+        {/* Current time indicator */}
         {isToday && (
           <div
             className="absolute left-0 right-0 z-5 pointer-events-none"
@@ -73,29 +113,28 @@ const DayColumn: React.FC<DayColumnProps> = ({ date, dayName, tasks, onEdit, onD
           return (
             <div
               key={task.id}
-              className={`absolute left-0.5 right-0.5 mx-0.5 rounded px-1.5 py-0.5 border-l-2 text-[11px] cursor-pointer hover:shadow-md transition-shadow group overflow-hidden ${info.color}`}
-              style={{ top: `${topRem}rem`, height: `${heightRem}rem` }}
+              className={`absolute left-0.5 right-0.5 mx-0.5 rounded px-2 py-1 cursor-pointer hover:shadow-md transition-shadow group overflow-hidden ${info.color}`}
+              style={{
+                top: `${topRem}rem`,
+                height: `${heightRem}rem`,
+                borderLeftWidth: '3px',
+              }}
               onClick={() => onEdit(task)}
-              title={`${task.title} (${task.duration_min} min)`}
+              title={`${task.title} (${task.duration_min} min) — click to edit`}
             >
-              {/* Delete button - always visible */}
               <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onDelete(task.id)
-                }}
-                className="absolute top-0.5 right-0.5 w-4 h-4 flex items-center justify-center rounded bg-white/80 hover:bg-red-500 hover:text-white text-gray-400 transition-colors text-[10px] font-bold z-10"
-                title="Delete task"
+                onClick={(e) => { e.stopPropagation(); onDelete(task.id) }}
+                className="absolute top-1 right-1 w-4 h-4 flex items-center justify-center rounded bg-white/80 hover:bg-red-500 hover:text-white text-gray-400 transition-colors text-[10px] font-bold z-10"
+                title="Delete"
               >
                 ✕
               </button>
-
-              <div className="font-semibold text-gray-800 truncate leading-tight pr-4">
+              <div className="font-bold text-gray-800 truncate leading-tight pr-5" style={{ fontSize: '13px' }}>
                 {task.title}
               </div>
               {heightRem >= 3 && (
-                <div className="text-gray-500 text-[9px] mt-0.5">
-                  {task.start_time} · {task.duration_min}m
+                <div className="text-gray-500 text-[10px] mt-0.5 font-medium">
+                  {task.start_time.slice(0, 5)} · {task.duration_min}m
                 </div>
               )}
             </div>

@@ -14,9 +14,11 @@ export const TOTAL_SLOTS = 96
 /**
  * Parse "HH:MM" time string to minutes from midnight.
  */
-export function timeToMinutes(timeStr: string): number {
-  const [h, m] = timeStr.split(':').map(Number)
-  return h * 60 + m
+export function timeToMinutes(timeStr: string | undefined | null): number {
+  if (!timeStr) return 0
+  const clean = timeStr.slice(0, 5) // Remove seconds if present
+  const [h, m] = clean.split(':').map(Number)
+  return (h || 0) * 60 + (m || 0)
 }
 
 /**

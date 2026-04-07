@@ -71,21 +71,27 @@ export const useStore = create<AppState>((set, get) => ({
   addTask: async (form: TaskFormData) => {
     await tasksApi.createTask(form)
     set({ showTaskForm: false })
-    await get().fetchWeek()
+    const { weekOffset } = get()
+    await get().fetchWeek(weekOffset)
   },
 
   updateTask: async (id: string, form: Partial<TaskFormData>) => {
     await tasksApi.updateTask(id, form)
     set({ editingTask: null, showTaskForm: false })
-    await get().fetchWeek()
+    const { weekOffset } = get()
+    await get().fetchWeek(weekOffset)
   },
 
   removeTask: async (id: string) => {
     await tasksApi.deleteTask(id)
-    await get().fetchWeek()
+    const { weekOffset } = get()
+    await get().fetchWeek(weekOffset)
   },
 
-  setShowTaskForm: (show: boolean) => set({ showTaskForm: show }),
+  setShowTaskForm: (show: boolean) => {
+    console.log('[store] setShowTaskForm:', show)
+    set({ showTaskForm: show })
+  },
   setEditingTask: (task: Task | null) => set({ editingTask: task, showTaskForm: task !== null }),
   setAIMessage: (msg: string | null) => set({ aiMessage: msg }),
   setWeekOffset: (offset: number) => {

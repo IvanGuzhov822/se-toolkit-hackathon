@@ -3,32 +3,15 @@
 @tailwind utilities;
 
 :root {
-  font-family:
-    "Inter",
-    system-ui,
-    -apple-system,
-    sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
-/* 15-min slot height: 1.5rem = 24px */
-.slot-height {
-  height: 1.5rem;
+body {
+  background-color: white;
 }
 
 /* Quadrant color classes */
-.quadrant-q1 {
-  background-color: #fecaca;
-  border-left: 4px solid #ef4444;
-}
-.quadrant-q2 {
-  background-color: #dbeafe;
-  border-left: 4px solid #3b82f6;
-}
-.quadrant-q3 {
-  background-color: #fef3c7;
-  border-left: 4px solid #f59e0b;
-}
-.quadrant-q4 {
-  background-color: #f3f4f6;
-  border-left: 4px solid #6b7280;
-}
+.quadrant-q1 { background-color: #fecaca; border-left: 3px solid #ef4444; }
+.quadrant-q2 { background-color: #dbeafe; border-left: 3px solid #3b82f6; }
+.quadrant-q3 { background-color: #fef3c7; border-left: 3px solid #f59e0b; }
+.quadrant-q4 { background-color: #f3f4f6; border-left: 3px solid #6b7280; }

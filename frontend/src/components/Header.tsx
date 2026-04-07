@@ -1,5 +1,6 @@
 import React from 'react'
 import { useStore } from '../store/taskStore'
+import { useAuth } from '../store/authStore'
 
 interface HeaderProps {
   weekStart: string
@@ -10,6 +11,8 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ weekStart, weekEnd, onAddTask }) => {
   const weekOffset = useStore((s) => s.weekOffset)
   const setWeekOffset = useStore((s) => s.setWeekOffset)
+  const username = useAuth((s) => s.username)
+  const clearAuth = useAuth((s) => s.clearAuth)
 
   const formatDate = (d: string) => {
     const date = new Date(d + 'T00:00:00')
@@ -59,12 +62,22 @@ const Header: React.FC<HeaderProps> = ({ weekStart, weekEnd, onAddTask }) => {
           {formatDate(weekStart)} — {formatDate(weekEnd)}
         </span>
       </div>
-      <button
-        onClick={onAddTask}
-        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex-shrink-0"
-      >
-        + Add Task
-      </button>
+      <div className="flex items-center gap-3 flex-shrink-0">
+        <span className="text-sm text-gray-600">👤 {username}</span>
+        <button
+          onClick={onAddTask}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+        >
+          + Add Task
+        </button>
+        <button
+          onClick={clearAuth}
+          className="text-sm text-gray-400 hover:text-red-500 transition-colors"
+          title="Sign out"
+        >
+          Sign Out
+        </button>
+      </div>
     </header>
   )
 }
