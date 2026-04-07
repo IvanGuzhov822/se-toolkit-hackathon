@@ -10,7 +10,7 @@ export const createTask = async (form: TaskFormData): Promise<Task> => {
   const payload: Record<string, unknown> = {
     title: form.title,
     description: form.description || undefined,
-    is_important: form.is_important,
+    quadrant: form.quadrant,
     deadline: (form.has_deadline && form.deadline) ? form.deadline : null,
     deadline_time: (form.has_deadline && form.deadline_time) ? form.deadline_time : null,
     scheduled_date: form.scheduled_date,
@@ -28,13 +28,12 @@ export const updateTask = async (id: string, form: Partial<TaskFormData>): Promi
   const payload: Record<string, unknown> = {}
   if (form.title !== undefined && form.title.trim()) payload.title = form.title.trim()
   if (form.description !== undefined) payload.description = form.description.trim() || null
-  if (form.is_important !== undefined) payload.is_important = form.is_important
+  if (form.quadrant !== undefined) payload.quadrant = form.quadrant
   if (form.has_deadline !== undefined) {
     payload.deadline = form.has_deadline && form.deadline ? form.deadline : null
     payload.deadline_time = form.has_deadline && form.deadline_time ? form.deadline_time : null
   }
   if (form.scheduled_date) payload.scheduled_date = form.scheduled_date
-  // Only send start_time if explicitly changed during edit
   if (form.start_time && form.start_time.trim()) payload.start_time = form.start_time.trim()
   if (form.duration_min) payload.duration_min = form.duration_min
 

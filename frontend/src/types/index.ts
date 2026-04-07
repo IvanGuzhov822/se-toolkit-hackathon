@@ -40,7 +40,7 @@ export interface AICheckResponse {
 export type TaskFormData = {
   title: string
   description: string
-  is_important: boolean
+  quadrant: 'Q1' | 'Q2' | 'Q3' | 'Q4'
   has_deadline: boolean
   deadline: string
   deadline_time: string

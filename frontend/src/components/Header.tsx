@@ -15,10 +15,13 @@ const Header: React.FC<HeaderProps> = ({ weekStart, weekEnd, onAddTask }) => {
   const clearAuth = useAuth((s) => s.clearAuth)
 
   const formatDate = (d: string) => {
+    if (!d) return ''
     const date = new Date(d + 'T00:00:00')
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
 
+  // Always show the actual date range from the fetched week data
+  // The label is just a helper — the real sync is via weekStart/weekEnd
   const weekLabel = (() => {
     if (weekOffset === 0) return 'This Week'
     if (weekOffset === -1) return 'Previous Week'
@@ -58,8 +61,9 @@ const Header: React.FC<HeaderProps> = ({ weekStart, weekEnd, onAddTask }) => {
             </button>
           )}
         </div>
-        <span className="text-sm text-gray-500 hidden sm:inline">
-          {formatDate(weekStart)} — {formatDate(weekEnd)}
+        {/* Always show the actual date range from the fetched week */}
+        <span className="text-sm text-gray-500 hidden sm:inline font-medium">
+          {weekStart ? `${formatDate(weekStart)} — ${formatDate(weekEnd)}` : ''}
         </span>
       </div>
       <div className="flex items-center gap-3 flex-shrink-0">
