@@ -10,6 +10,7 @@ export interface Task {
   start_time: string
   duration_min: number
   quadrant: 'Q1' | 'Q2' | 'Q3' | 'Q4'
+  ai_warning: string | null
   created_at: string
   updated_at: string
 }

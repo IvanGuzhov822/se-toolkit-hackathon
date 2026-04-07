@@ -69,8 +69,12 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   addTask: async (form: TaskFormData) => {
-    await tasksApi.createTask(form)
+    const result = await tasksApi.createTask(form)
     set({ showTaskForm: false })
+    // If AI returned a warning, store it for the modal
+    if (result.ai_warning) {
+      set({ aiMessage: result.ai_warning })
+    }
     const { weekOffset } = get()
     await get().fetchWeek(weekOffset)
   },
