@@ -12,7 +12,7 @@ from app.schemas.task import TaskCreate, TaskUpdate, TaskResponse
 from app.utils.covey_matrix import calculate_quadrant
 from app.services.task_service import log_priority_change
 from app.services.time_scheduler import calculate_start_time, redistribute_day_overload
-from app.services.ai_service import find_similar_task_title, ai_check_priority_change
+from app.services.ai_service import ai_check_priority_change
 from app.dependencies import get_current_user
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
@@ -38,7 +38,9 @@ async def create_task(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    quadrant = calculate_quadrant(payload.is_important, payload.deadline)
+    # User-selected quadrant, no auto-calculation
+    quadrant = payload.quadrant or "Q4"
+    is_important = quadrant in ("Q1", "Q2")
 
     def _to_min(t):
         return t.hour * 60 + t.minute
@@ -101,7 +103,7 @@ async def create_task(
         user_id=user.id,
         title=payload.title,
         description=payload.description,
-        is_important=payload.is_important,
+        is_important=is_important,
         deadline=payload.deadline,
         deadline_time=payload.deadline_time,
         scheduled_date=scheduled_date,
@@ -118,23 +120,19 @@ async def create_task(
     await session.commit()
     await session.refresh(task)
 
-    # AI check: look for similar past tasks with different priority
+    # AI check with full history
     ai_warning = None
-    all_past_tasks = await session.execute(
-        select(Task).where(Task.user_id == user.id, Task.id != task.id)
+    all_past_tasks_res = await session.execute(
+        select(Task.title, Task.quadrant).where(Task.user_id == user.id, Task.id != task.id)
     )
-    past_tasks = all_past_tasks.scalars().all()
+    past_tasks = [{"title": row.title, "quadrant": row.quadrant} for row in all_past_tasks_res.all()]
+
     if past_tasks:
-        similar_title = find_similar_task_title(task.title, [t.title for t in past_tasks])
-        if similar_title:
-            matching_task = next((t for t in past_tasks if t.title == similar_title), None)
-            if matching_task:
-                new_priority = "important" if task.is_important else "not important"
-                old_priority = "important" if matching_task.is_important else "not important"
-                if new_priority != old_priority:
-                    ai_warning = await ai_check_priority_change(
-                        task.title, new_priority, similar_title, old_priority
-                    )
+        warning = await ai_check_priority_change(
+            task.title, task.quadrant, past_tasks
+        )
+        if warning:
+            ai_warning = warning
 
     response = TaskResponse.model_validate(task)
     response.ai_warning = ai_warning
@@ -234,7 +232,10 @@ async def update_task(
         task.title = payload.title
     if payload.description is not None:
         task.description = payload.description
-    if payload.is_important is not None:
+    if payload.quadrant is not None:
+        task.quadrant = payload.quadrant
+        task.is_important = payload.quadrant in ("Q1", "Q2")
+    if payload.is_important is not None and payload.quadrant is None:
         task.is_important = payload.is_important
     if payload.deadline is not None:
         task.deadline = payload.deadline
@@ -246,9 +247,6 @@ async def update_task(
         task.start_time = payload.start_time
     if payload.duration_min is not None:
         task.duration_min = payload.duration_min
-
-    # Recalculate quadrant
-    task.quadrant = calculate_quadrant(task.is_important, task.deadline)
 
     await session.commit()
     await session.refresh(task)

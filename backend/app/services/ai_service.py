@@ -1,72 +1,58 @@
+import httpx
 import logging
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
 
-async def ai_check_priority_change(
-    task_title: str,
-    new_priority: str,
-    similar_task_title: str,
-    old_priority: str,
-) -> str:
+async def ai_check_priority_change(task_title: str, new_quadrant: str, past_tasks: list[dict]) -> str:
     """
-    Check if priority choice differs from similar past task.
-    Currently uses rule-based fallback (LLM disabled due to university VM restrictions).
-    
-    To enable LLM on university VMs:
-    1. Set up qwen-code-api proxy on port 42005
-    2. Set USE_LLM=true and QWEN_PROXY_URL=http://localhost:42005/v1 in .env
+    Uses LLM to find similar tasks and generate a warning.
+    past_tasks = [{'title': 'Task A', 'quadrant': 'Q1'}, ...]
     """
-    # LLM integration is ready — just enable in .env
-    # For now, always use rule-based fallback
-    return _rule_based_warning(task_title, new_priority, similar_task_title, old_priority)
-
-
-def _rule_based_warning(
-    task_title: str,
-    new_priority: str,
-    similar_task_title: str,
-    old_priority: str,
-) -> str:
-    """Generate a warning when priority differs from similar past task."""
-    return (
-        f"You previously marked \"{similar_task_title}\" as {old_priority}. "
-        f"Now you're setting \"{task_title}\" as {new_priority}. "
-        f"Are you sure about this change?"
-    )
-
-
-def find_similar_task_title(
-    title: str,
-    existing_titles: list[str],
-    threshold: float = 0.5,
-) -> str | None:
-    """
-    Find the most similar existing task title.
-    Uses a simple word-overlap heuristic (Jaccard similarity).
-    """
-    if not existing_titles:
+    if not getattr(settings, 'USE_LLM', False):
         return None
 
-    title_words = set(_normalize(title))
-    best_score = 0.0
-    best_title = None
+    proxy_url = getattr(settings, 'QWEN_PROXY_URL', '')
+    if not proxy_url:
+        return None
 
-    for existing in existing_titles:
-        existing_words = set(_normalize(existing))
-        if not title_words or not existing_words:
-            continue
-        overlap = len(title_words & existing_words)
-        union = len(title_words | existing_words)
-        score = overlap / union if union > 0 else 0
-        if score > best_score and score >= threshold:
-            best_score = score
-            best_title = existing
+    # Формируем список истории для промпта
+    history_text = "\n".join([f"- {t['title']} (Priority: {t['quadrant']})" for t in past_tasks])
 
-    return best_title
+    prompt = (
+        f"I am creating a task called '{task_title}' with priority '{new_quadrant}'. "
+        f"Here are my past tasks:\n{history_text}\n\n"
+        f"1. Identify if any past task is semantically similar to '{task_title}' (even if worded differently) "
+        f"AND has a DIFFERENT priority.\n"
+        f"2. If found, write a short, helpful warning (2 sentences max) in English. "
+        f"Example: 'Similar task \"Study Math\" was Q1, now you set this as Q4. Are you sure?'\n"
+        f"3. If nothing similar found or priority matches, reply ONLY with the word: 'OK'."
+    )
 
+    try:
+        headers = {"Content-Type": "application/json"}
+        if settings.QWEN_API_KEY:
+            headers["Authorization"] = f"Bearer {settings.QWEN_API_KEY}"
 
-def _normalize(text: str) -> list[str]:
-    """Lowercase, remove punctuation and short words."""
-    import re
-    return [w for w in re.findall(r'\w+', text.lower()) if len(w) >= 3]
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                f"{settings.QWEN_PROXY_URL}/chat/completions",
+                json={
+                    "model": "qwen3-coder-plus",
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": 100,
+                    "temperature": 0.3
+                },
+                headers=headers
+            )
+            data = response.json()
+            result = data["choices"][0]["message"]["content"].strip()
+
+            # Если LLM не нашел совпадений (вернул OK), то предупреждения нет
+            if result.upper() == "OK":
+                return None
+            return result
+    except Exception as e:
+        logger.warning(f"LLM unavailable ({e}), fallback to basic check.")
+        return None

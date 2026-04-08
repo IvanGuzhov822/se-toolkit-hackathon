@@ -12,4 +12,4 @@ asyncio.run(seed_quotes())
 " 2>/dev/null || echo "⚠️  Quote seeding skipped (table may not exist yet)"
 
 echo "🚀 Starting CoveyWeek server..."
-exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+exec uvicorn app.main:app --host 0.0.0.0 --port 8000

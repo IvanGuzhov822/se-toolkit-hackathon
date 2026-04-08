@@ -14,6 +14,7 @@ class TaskCreate(BaseModel):
     duration_min: int = Field(..., gt=0, le=480)
     manual: bool = False
     manual_start: Optional[time] = None
+    quadrant: Optional[str] = None  # If provided, overrides auto-calculation
 
 
 class TaskUpdate(BaseModel):
@@ -24,6 +25,7 @@ class TaskUpdate(BaseModel):
     scheduled_date: Optional[date] = None
     start_time: Optional[time] = None
     duration_min: Optional[int] = None
+    quadrant: Optional[str] = None  # If provided, overrides auto-calculation
 
 
 class TaskMove(BaseModel):
