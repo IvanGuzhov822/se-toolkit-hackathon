@@ -22,6 +22,7 @@ class TaskUpdate(BaseModel):
     description: Optional[str] = None
     is_important: Optional[bool] = None
     deadline: Optional[date] = None
+    deadline_time: Optional[time] = None
     scheduled_date: Optional[date] = None
     start_time: Optional[time] = None
     duration_min: Optional[int] = None

@@ -27,8 +27,8 @@ services:
       JWT_SECRET_KEY: my-super-secret-key-for-production
       CORS_ORIGINS: "http://localhost:5173,http://localhost:8000"
       USE_LLM: "true"
-      QWEN_PROXY_URL: "http://qwen-code-api-qwen-code-api-1:8080/v1"
-      QWEN_API_KEY: "my-secret-qwen-key"
+      QWEN_PROXY_URL: "http://se-toolkit-lab-8-qwen-code-api-1:8080/v1"
+      QWEN_API_KEY: "yachta-barakuda"
     depends_on:
       postgres:
         condition: service_healthy

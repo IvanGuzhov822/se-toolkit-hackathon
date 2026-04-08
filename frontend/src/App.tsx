@@ -12,7 +12,7 @@ import { useWeek } from './hooks'
 
 const App: React.FC = () => {
   const { isAuthenticated, loadFromStorage } = useAuth()
-  const { week } = useWeek()
+  const { week } = useWeek(isAuthenticated)
   const setShowTaskForm = useStore((s) => s.setShowTaskForm)
 
   useEffect(() => {

@@ -35,7 +35,7 @@ async def ai_check_priority_change(task_title: str, new_quadrant: str, past_task
         if settings.QWEN_API_KEY:
             headers["Authorization"] = f"Bearer {settings.QWEN_API_KEY}"
 
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=15.0) as client:
             response = await client.post(
                 f"{settings.QWEN_PROXY_URL}/chat/completions",
                 json={
@@ -46,6 +46,11 @@ async def ai_check_priority_change(task_title: str, new_quadrant: str, past_task
                 },
                 headers=headers
             )
+
+            if response.status_code != 200:
+                logger.warning(f"LLM returned status {response.status_code}: {response.text[:200]}")
+                return None
+
             data = response.json()
             result = data["choices"][0]["message"]["content"].strip()
 
@@ -53,6 +58,15 @@ async def ai_check_priority_change(task_title: str, new_quadrant: str, past_task
             if result.upper() == "OK":
                 return None
             return result
+    except httpx.HTTPStatusError as e:
+        logger.warning(f"LLM HTTP error ({e.response.status_code}): {e.response.text[:200]}")
+        return None
+    except httpx.RequestError as e:
+        logger.warning(f"LLM request failed ({e})")
+        return None
+    except (KeyError, ValueError) as e:
+        logger.warning(f"LLM response parsing failed ({e})")
+        return None
     except Exception as e:
         logger.warning(f"LLM unavailable ({e}), fallback to basic check.")
         return None

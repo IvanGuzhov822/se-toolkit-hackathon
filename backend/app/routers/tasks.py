@@ -11,7 +11,7 @@ from app.models.user import User
 from app.schemas.task import TaskCreate, TaskUpdate, TaskResponse
 from app.utils.covey_matrix import calculate_quadrant
 from app.services.task_service import log_priority_change
-from app.services.time_scheduler import calculate_start_time, redistribute_day_overload
+from app.services.time_scheduler import calculate_start_time, redistribute_day_overload, _is_sleep_time, _time_to_minutes
 from app.services.ai_service import ai_check_priority_change
 from app.dependencies import get_current_user
 
@@ -61,6 +61,19 @@ async def create_task(
                     status_code=400,
                     detail=f"Cannot schedule a task before the current time. It is now {(now_min // 60):02d}:{now_min % 60:02d}.",
                 )
+
+        # Validate task does not overlap with sleep time
+        task_end_min = new_start_min + payload.duration_min
+        if _is_sleep_time(new_start_min, user.sleep_start, user.sleep_end):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Task starts during your sleep hours ({user.sleep_start}–{user.sleep_end}). Choose a different time.",
+            )
+        if _is_sleep_time(task_end_min - 1, user.sleep_start, user.sleep_end):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Task overlaps with your sleep hours ({user.sleep_start}–{user.sleep_end}). Choose a different time or shorter duration.",
+            )
 
         # Validate task can finish before its own deadline
         if payload.deadline and scheduled_date == payload.deadline:
@@ -179,6 +192,19 @@ async def update_task(
                     detail=f"Cannot schedule a task before the current time. It is now {(now_min // 60):02d}:{now_min % 60:02d}.",
                 )
 
+        # Validate task does not overlap with sleep time
+        task_end_min = new_start_min + new_duration
+        if _is_sleep_time(new_start_min, user.sleep_start, user.sleep_end):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Task starts during your sleep hours ({user.sleep_start}–{user.sleep_end}). Choose a different time.",
+            )
+        if _is_sleep_time(task_end_min - 1, user.sleep_start, user.sleep_end):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Task overlaps with your sleep hours ({user.sleep_start}–{user.sleep_end}). Choose a different time or shorter duration.",
+            )
+
         # Validate task can finish before its own deadline — for both new and edit
         task_deadline = payload.deadline if payload.deadline is not None else task.deadline
         task_deadline_time = payload.deadline_time if payload.deadline_time is not None else (task.deadline_time if task else None)
@@ -207,7 +233,6 @@ async def update_task(
 
         # Q1/Q3 deadline check (to the minute)
         if task.deadline and task.quadrant in ("Q1", "Q3"):
-            from datetime import datetime, timedelta
             deadline_dt = datetime.combine(task.deadline, task.deadline_time or time(23, 59))
             task_end = datetime.combine(new_date, new_start) + timedelta(minutes=new_duration)
             if task_end > deadline_dt:

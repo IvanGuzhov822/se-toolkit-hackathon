@@ -26,11 +26,19 @@ const AuthPage: React.FC = () => {
       }
       setAuth(response.access_token, response.username, response.sleep_start, response.sleep_end)
     } catch (err: unknown) {
-      const msg =
-        err && typeof err === 'object' && 'response' in err
-          ? (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
-          : 'Something went wrong'
-      setError(msg || 'Invalid credentials')
+      console.error('Auth error:', err)
+
+      let msg = 'Something went wrong'
+      if (err && typeof err === 'object' && 'response' in err) {
+        const axiosErr = err as { response?: { status?: number; data?: { detail?: string } }; message?: string }
+        msg = axiosErr.response?.data?.detail
+          || axiosErr.response?.status === 400 ? 'Username already taken or invalid data'
+          : axiosErr.response?.status === 500 ? 'Server error. Please try again.'
+          : axiosErr.message || 'Something went wrong'
+      } else if (err instanceof Error) {
+        msg = err.message
+      }
+      setError(msg)
     } finally {
       setLoading(false)
     }
