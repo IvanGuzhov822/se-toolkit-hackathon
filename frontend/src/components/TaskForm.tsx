@@ -2,15 +2,19 @@ import React, { useState, useEffect } from 'react'
 import { useStore } from '../store/taskStore'
 import { TaskFormData } from '../types'
 
-const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+const QUADRANT_COLORS: Record<string, string> = {
+  Q1: 'bg-red-100 border-red-500 text-red-800',
+  Q2: 'bg-blue-100 border-blue-500 text-blue-800',
+  Q3: 'bg-amber-100 border-amber-500 text-amber-800',
+  Q4: 'bg-gray-100 border-gray-400 text-gray-700',
+}
 
-// Quadrant info for display
-const QUADRANT_INFO = [
-  { code: 'Q1', label: 'Do First', time: '08:00 — morning', color: 'text-red-600' },
-  { code: 'Q2', label: 'Schedule', time: '10:00 — deep work', color: 'text-blue-600' },
-  { code: 'Q3', label: 'Delegate', time: '15:00 — after lunch', color: 'text-amber-600' },
-  { code: 'Q4', label: 'Eliminate', time: '18:00 — evening', color: 'text-gray-500' },
-]
+const QUADRANT_LABELS: Record<string, string> = {
+  Q1: 'Do First',
+  Q2: 'Schedule',
+  Q3: 'Delegate',
+  Q4: 'Eliminate',
+}
 
 const TaskForm: React.FC = () => {
   const showTaskForm = useStore((s) => s.showTaskForm)
@@ -22,32 +26,48 @@ const TaskForm: React.FC = () => {
 
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [isImportant, setIsImportant] = useState(false)
+  const [quadrant, setQuadrant] = useState<'Q1' | 'Q2' | 'Q3' | 'Q4'>('Q1')
   const [hasDeadline, setHasDeadline] = useState(false)
   const [deadline, setDeadline] = useState('')
+  const [deadlineTime, setDeadlineTime] = useState('23:59')
   const [scheduledDate, setScheduledDate] = useState('')
   const [durationMin, setDurationMin] = useState(30)
+  const [startTime, setStartTime] = useState('09:00')
+  const [startTimeChanged, setStartTimeChanged] = useState(false)
+  const [manual, setManual] = useState(false)
+  const [manualStart, setManualStart] = useState('09:00')
+  const [error, setError] = useState('')
 
   useEffect(() => {
     if (editingTask) {
       setTitle(editingTask.title)
       setDescription(editingTask.description || '')
-      setIsImportant(editingTask.is_important)
+      setQuadrant(editingTask.quadrant)
       setHasDeadline(!!editingTask.deadline)
       setDeadline(editingTask.deadline || '')
+      setDeadlineTime(editingTask.deadline_time ? editingTask.deadline_time.slice(0, 5) : '23:59')
       setScheduledDate(editingTask.scheduled_date)
+      setStartTime(editingTask.start_time ? editingTask.start_time.slice(0, 5) : '09:00')
+      setStartTimeChanged(false)
       setDurationMin(editingTask.duration_min)
+      setManual(false)
     }
   }, [editingTask])
 
   const resetForm = () => {
     setTitle('')
     setDescription('')
-    setIsImportant(false)
+    setQuadrant('Q1')
     setHasDeadline(false)
     setDeadline('')
+    setDeadlineTime('23:59')
     setScheduledDate('')
+    setStartTime('09:00')
+    setStartTimeChanged(false)
     setDurationMin(30)
+    setManual(false)
+    setManualStart('09:00')
+    setError('')
     setEditingTask(null)
   }
 
@@ -59,36 +79,51 @@ const TaskForm: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError('')
     if (!title.trim() || !scheduledDate) return
+
+    const selectedDate = new Date(scheduledDate + 'T00:00:00')
+    const todayStart = new Date()
+    todayStart.setHours(0, 0, 0, 0)
+    if (selectedDate < todayStart) {
+      setError('Cannot schedule a task in the past.')
+      return
+    }
 
     const form: TaskFormData = {
       title: title.trim(),
       description: description.trim(),
-      is_important: isImportant,
+      quadrant,
       has_deadline: hasDeadline,
       deadline: hasDeadline ? deadline : '',
+      deadline_time: hasDeadline ? deadlineTime : '',
       scheduled_date: scheduledDate,
+      start_time: editingTask && startTimeChanged ? startTime : (editingTask ? '' : ''),
       duration_min: durationMin,
+      manual: manual,
+      manual_start: manual ? manualStart : '',
     }
 
-    if (editingTask) {
-      await updateTask(editingTask.id, form)
-    } else {
-      await addTask(form)
+    try {
+      if (editingTask) {
+        await updateTask(editingTask.id, form)
+      } else {
+        await addTask(form)
+      }
+      resetForm()
+    } catch (err: unknown) {
+      const msg = err && typeof err === 'object' && 'response' in err
+        ? (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
+        : 'Something went wrong. Please try again.'
+      setError(msg || 'An unexpected error occurred.')
     }
-    resetForm()
   }
 
   if (!showTaskForm) return null
 
-  // Get next 4 weeks for date picker
   const today = new Date()
   const maxDate = new Date(today)
   maxDate.setDate(maxDate.getDate() + 28)
-  const minDate = new Date(today)
-  minDate.setDate(minDate.getDate() - 7)
-
-  console.log('TaskForm rendering, showTaskForm:', showTaskForm)
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -101,6 +136,12 @@ const TaskForm: React.FC = () => {
             ✕
           </button>
         </div>
+
+        {error && (
+          <div className="mb-4 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
+            ⚠️ {error}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Title */}
@@ -128,22 +169,75 @@ const TaskForm: React.FC = () => {
             />
           </div>
 
-          {/* Important toggle */}
-          <div className="flex items-center gap-3">
-            <label className="text-sm font-medium text-gray-700">Important</label>
-            <button
-              type="button"
-              onClick={() => setIsImportant(!isImportant)}
-              className={`w-10 h-6 rounded-full transition-colors ${isImportant ? 'bg-blue-600' : 'bg-gray-300'}`}
-            >
-              <div
-                className={`w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${isImportant ? 'translate-x-5' : 'translate-x-0.5'}`}
+          {/* Quadrant selector */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+            <div className="grid grid-cols-2 gap-2">
+              {(['Q1', 'Q2', 'Q3', 'Q4'] as const).map((q) => (
+                <button
+                  key={q}
+                  type="button"
+                  onClick={() => setQuadrant(q)}
+                  className={`p-2 rounded-lg border-2 text-sm font-medium transition-all ${
+                    quadrant === q
+                      ? `${QUADRANT_COLORS[q]} ring-2 ring-offset-1 ring-current`
+                      : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="font-bold">{q}</div>
+                  <div className="text-xs">{QUADRANT_LABELS[q]}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Scheduled date */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Schedule for *</label>
+            <input
+              type="date"
+              value={scheduledDate}
+              onChange={(e) => setScheduledDate(e.target.value)}
+              min={today.toISOString().split('T')[0]}
+              max={maxDate.toISOString().split('T')[0]}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+
+          {/* Start time (only when editing existing task) */}
+          {editingTask && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Start time</label>
+              <input
+                type="time"
+                value={startTime}
+                onChange={(e) => { setStartTime(e.target.value); setStartTimeChanged(true) }}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
               />
-            </button>
-            <span className="text-xs text-gray-500">
-              {isImportant ? 'Q2 — Schedule' : 'Q4 — Eliminate'}
-              {hasDeadline && (isImportant ? ' → Q1 — Do First' : ' → Q3 — Delegate')}
-            </span>
+              <p className="text-[10px] text-gray-400 mt-1">
+                Change the task's start time.
+              </p>
+            </div>
+          )}
+
+          {/* Duration */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Duration (min)</label>
+            <select
+              value={durationMin}
+              onChange={(e) => setDurationMin(Number(e.target.value))}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+            >
+              <option value={15}>15 min</option>
+              <option value={30}>30 min</option>
+              <option value={45}>45 min</option>
+              <option value={60}>1 hour</option>
+              <option value={90}>1.5 hours</option>
+              <option value={120}>2 hours</option>
+              <option value={180}>3 hours</option>
+              <option value={240}>4 hours</option>
+            </select>
           </div>
 
           {/* Deadline */}
@@ -173,49 +267,17 @@ const TaskForm: React.FC = () => {
             </div>
           )}
 
-          {/* Scheduled date */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Schedule for *</label>
-            <input
-              type="date"
-              value={scheduledDate}
-              onChange={(e) => setScheduledDate(e.target.value)}
-              min={minDate.toISOString().split('T')[0]}
-              max={maxDate.toISOString().split('T')[0]}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
-              required
-            />
-          </div>
-
-          {/* Duration */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Duration (min)</label>
-            <select
-              value={durationMin}
-              onChange={(e) => setDurationMin(Number(e.target.value))}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
-            >
-              <option value={15}>15 min</option>
-              <option value={30}>30 min</option>
-              <option value={45}>45 min</option>
-              <option value={60}>1 hour</option>
-              <option value={90}>1.5 hours</option>
-              <option value={120}>2 hours</option>
-              <option value={180}>3 hours</option>
-              <option value={240}>4 hours</option>
-            </select>
-          </div>
-
-          {/* Auto-schedule info */}
-          <div className="bg-gray-50 rounded-lg p-3 text-xs space-y-1">
-            <p className="font-medium text-gray-600">⏰ Auto-scheduled by priority:</p>
-            {QUADRANT_INFO.map((q) => (
-              <div key={q.code} className="flex items-center gap-2">
-                <span className={`font-semibold ${q.color}`}>{q.code}:</span>
-                <span className="text-gray-500">{q.time}</span>
-              </div>
-            ))}
-          </div>
+          {hasDeadline && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Deadline time</label>
+              <input
+                type="time"
+                value={deadlineTime}
+                onChange={(e) => setDeadlineTime(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          )}
 
           {/* Buttons */}
           <div className="flex gap-3 pt-2">

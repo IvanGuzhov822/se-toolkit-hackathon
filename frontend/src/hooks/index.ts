@@ -1,7 +1,7 @@
 import { useEffect, useCallback } from 'react'
 import { useStore } from '../store/taskStore'
 
-export const useWeek = () => {
+export const useWeek = (enabled: boolean = true) => {
   const week = useStore((s) => s.week)
   const weekOffset = useStore((s) => s.weekOffset)
   const loading = useStore((s) => s.loading)
@@ -9,8 +9,10 @@ export const useWeek = () => {
   const fetchWeek = useStore((s) => s.fetchWeek)
 
   useEffect(() => {
-    fetchWeek(weekOffset)
-  }, [fetchWeek, weekOffset])
+    if (enabled) {
+      fetchWeek(weekOffset)
+    }
+  }, [fetchWeek, weekOffset, enabled])
 
   return { week, loading, error, refetch: fetchWeek }
 }
