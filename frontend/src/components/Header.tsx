@@ -1,0 +1,72 @@
+import React from 'react'
+import { useStore } from '../store/taskStore'
+
+interface HeaderProps {
+  weekStart: string
+  weekEnd: string
+  onAddTask: () => void
+}
+
+const Header: React.FC<HeaderProps> = ({ weekStart, weekEnd, onAddTask }) => {
+  const weekOffset = useStore((s) => s.weekOffset)
+  const setWeekOffset = useStore((s) => s.setWeekOffset)
+
+  const formatDate = (d: string) => {
+    const date = new Date(d + 'T00:00:00')
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  }
+
+  const weekLabel = (() => {
+    if (weekOffset === 0) return 'This Week'
+    if (weekOffset === -1) return 'Previous Week'
+    if (weekOffset === 1) return 'Next Week'
+    return `Week ${weekOffset > 0 ? '+' : ''}${weekOffset}`
+  })()
+
+  return (
+    <header className="bg-white shadow-sm border-b border-gray-200 px-4 py-3 flex items-center justify-between gap-3">
+      <div className="flex items-center gap-3">
+        <h1 className="text-xl font-bold text-gray-900">CoveyWeek</h1>
+        <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+          <button
+            onClick={() => setWeekOffset(weekOffset - 1)}
+            className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-white hover:shadow-sm text-gray-600 transition-all"
+            title="Previous week"
+          >
+            ‹
+          </button>
+          <span className="text-xs text-gray-500 w-24 text-center">
+            {weekLabel}
+          </span>
+          <button
+            onClick={() => setWeekOffset(weekOffset + 1)}
+            className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-white hover:shadow-sm text-gray-600 transition-all"
+            title="Next week"
+          >
+            ›
+          </button>
+          {weekOffset !== 0 && (
+            <button
+              onClick={() => setWeekOffset(0)}
+              className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+              title="Back to current week"
+            >
+              Today
+            </button>
+          )}
+        </div>
+        <span className="text-sm text-gray-500 hidden sm:inline">
+          {formatDate(weekStart)} — {formatDate(weekEnd)}
+        </span>
+      </div>
+      <button
+        onClick={onAddTask}
+        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex-shrink-0"
+      >
+        + Add Task
+      </button>
+    </header>
+  )
+}
+
+export default Header
