@@ -1,16 +1,22 @@
 # CoveyWeek
 
-A principle-driven weekly planner inspired by Stephen Covey's *7 Habits of Highly Effective People*.
+> *A principle-driven weekly planner inspired by Stephen Covey's "7 Habits of Highly Effective People".*
 
 ---
 
-## Screenshots
+## Demo
 
-### Weekly View with Covey Matrix
-![Weekly View](https://placehold.co/800x400/e2e8f0/1e293b?text=Weekly+Calendar+View+with+Q1-Q4+Color+Coding)
+### Sign Up Form
+![Sign Up Form](sign-up.png)
 
-### Add Task Dialog
-![Add Task](https://placehold.co/400x300/f1f5f9/1e293b?text=Add+Task+Form)
+### Task Creation
+![Task Creation](task-creation.png)
+
+### Weekly View
+![Weekly View](weekly-view.png)
+
+### Task edit
+![Task edit](task-edit.png)
 
 ---
 
@@ -20,38 +26,30 @@ A principle-driven weekly planner inspired by Stephen Covey's *7 Habits of Highl
 Students and young professionals who want to manage their time based on principles, not just urgency.
 
 ### Problem
-Most task managers sort tasks by deadline alone, causing people to confuse **urgent** with **important**. This leads to burnout and neglect of long-term goals (Covey's Quadrant II).
+Most task planners sort tasks by deadline alone, causing people to confuse **urgent** with **important**. This leads to burnout and neglect of long-term goals.
 
 ### Our Solution
-CoveyWeek places every task into one of four quadrants:
-1. **Q1 — Do First** (Urgent + Important)
-2. **Q2 — Schedule** (Important, Not Urgent)
-3. **Q3 — Delegate** (Urgent, Not Important)
-4. **Q4 — Eliminate** (Not Urgent, Not Important)
-
-Tasks are displayed on a weekly timeline grid, sorted by quadrant priority.
-
+CoveyWeek lets users manually assign each task to one of four Covey quadrants (Q1–Q4), then auto-schedules them on a weekly timeline at the right time of day.
 ---
 
 ## Features
 
-### ✅ Implemented (Version 1)
-- **User Authentication** — Register/Login with JWT tokens (7-day expiry)
-- **Sleep Schedule** — Set your sleep/wake hours during registration; tasks are never scheduled during sleep
-- **Auto-scheduling** — Tasks placed by Covey quadrant priority (Q1→Q4), stacking within awake hours
-- **Overflow to next day** — If a day is full, tasks automatically move to the next available day
-- **Create, edit, delete tasks** with importance toggle, deadline toggle, duration
-- **Weekly calendar view** (Mon–Sun) with 15-minute time slots
-- **Color-coded tasks** by quadrant (red/blue/amber/gray)
-- **Random Covey quotes banner** (18 verified quotes from the book)
-- **Week navigation** — previous/next week + "Today" button
-- **AI-powered priority-change detection** (rule-based in V1, LLM in V2)
+### ✅ Implemented (Version 2)
+- **Sleep Schedule** — Tasks are never scheduled during sleep hours
+- **Manual Quadrant Selection** — Choose Q1–Q4 at creation; quadrant never auto-changes
+- **Auto-Scheduling** — Tasks placed at quadrant base times: Q1 → 08:00, Q2 → 10:00, Q3 → 14:00, Q4 → 16:00
+- **Daily Overflow** — If a day exceeds 12 hours, tasks move to the next day
+- **Weekly Calendar View** — 7 days × 96 time slots (15-min resolution)
+- **Color-Coded Tasks** — Red (Q1), Blue (Q2), Amber (Q3), Gray (Q4)
+- **Week Navigation** — Previous / Next week + "Today" button
+- **Deadline Support** — Optional date + time per task
+- **AI Similarity Warnings** — LLM-based warnings when a task has a different priority than a similar past task (via qwen-code-api proxy)
+- **Covey Quotes Banner** — 18 verified quotes from the book
+- **Dockerized** — Backend, Frontend, PostgreSQL in Docker Compose
 
-### 🔜 Planned (Version 2)
+### 🔜 Not Yet Implemented
 - Telegram bot for quick task management
-- Full LLM integration for contextual priority analysis
-- Task history and pattern insights
-- Mobile-responsive PWA improvements
+- Mobile App
 
 ---
 
@@ -59,70 +57,85 @@ Tasks are displayed on a weekly timeline grid, sorted by quadrant priority.
 
 1. Open the app in your browser
 2. **Register** with a username, password, and your sleep schedule
-3. **Create tasks** — set importance, optional deadline, and duration
-4. The system **auto-schedules** each task based on:
-   - **Covey quadrant** (Q1 first at 08:00, Q2 at 10:00, Q3 at 15:00, Q4 at 18:00)
-   - **Your sleep hours** — no tasks during sleep
-   - **Existing tasks** — stacking within each quadrant
-   - **Overflow** — if a day is full, tasks move to the next day
-5. Navigate between weeks with `‹` / `›` buttons
-6. Click a task to edit, click `✕` to delete
+3. **Create tasks** — choose a quadrant (Q1–Q4), optional deadline, and duration
+4. Tasks are placed at the quadrant's base time on your chosen day
+5. If the day exceeds 12 hours, new tasks overflow to the next day
+6. Navigate between weeks with `‹` / `›` buttons
+7. Click a task to edit or click `✕` to delete
 
 ---
 
 ## Deployment
 
-### OS Requirements
-Ubuntu 24.04 (or any Linux with Docker support)
+### OS
+Ubuntu 24.04
 
-### What Should Be Installed
+### Prerequisites
 ```bash
-# Install Docker and Docker Compose
 sudo apt update
-sudo apt install -y docker.io docker-compose-v2
+sudo apt install -y git docker.io docker-compose-v2
 sudo systemctl enable --now docker
 ```
 
-### Step-by-Step Deployment
+> **Note:** If you get a `containerd` conflict, run `sudo apt remove -y containerd && sudo apt autoremove` before installing `docker.io`.
+
+### Step-by-Step
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/<your-username>/se-toolkit-hackathon.git
+cd ~
+git clone https://github.com/IvanGuzhov822/se-toolkit-hackathon.git
 cd se-toolkit-hackathon
 
-# 2. Copy environment file
-cp .env.example .env
+# 2. Start all services
+docker compose up -d
 
-# 3. Start all services
-docker-compose up -d
-
-# 4. Run database migrations
-docker-compose exec backend alembic upgrade head
-
-# 5. Seed Covey quotes
-docker-compose exec backend python -c "from app.services.quote_service import seed_quotes; import asyncio; asyncio.run(seed_quotes())"
-
-# 6. Open in browser
-# Frontend: http://localhost:5173
-# Backend API docs: http://localhost:8000/docs
+# 3. Verify
+docker compose ps
+curl http://localhost:8000/api/health
 ```
 
 ### Services
 
-| Service | URL | Description |
-|---------|-----|-------------|
-| Frontend | http://localhost:5173 | React weekly planner UI |
-| Backend | http://localhost:8000 | FastAPI REST API |
-| API Docs | http://localhost:8000/docs | Swagger UI |
-| PostgreSQL | localhost:5432 | Database |
+| Service | URL |
+|---------|-----|
+| Frontend | http://localhost:5173 |
+| Backend API | http://localhost:8000 |
+| Swagger Docs | http://localhost:8000/docs |
+| PostgreSQL | localhost:5432 |
 
-### Stopping the App
+### Useful Commands
+
 ```bash
-docker-compose down
+# View logs
+docker compose logs -f backend
+
+# Restart backend
+docker compose restart backend
+
+# Full reset (deletes all data)
+docker compose down -v && docker compose up -d
 ```
 
-### Resetting Everything
+### Local Development (Frontend Only)
+
+If you want to run the frontend locally (for development) while the backend runs in Docker:
+
 ```bash
-docker-compose down -v
-docker-compose up -d
+# 1. Start backend + database in Docker
+docker compose up -d backend postgres
+
+# 2. Install frontend dependencies
+cd frontend
+npm install
+
+# 3. Run the dev server
+npm run dev
+
+# Frontend will be available at http://localhost:5173
+# It proxies API requests to the Docker backend at http://localhost:8000
 ```
+
+---
+
+
